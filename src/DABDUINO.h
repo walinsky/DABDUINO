@@ -31,11 +31,12 @@ public:
   int8_t sendCommand(byte dabCommand[], byte dabData[], uint32_t *dabDataSize);
 
   // *************************
-  // ***** SYSETEM ***********
+  // ***** SYSTEM ***********
   // *************************
 
   int8_t reset();
   int8_t resetCleanDB();
+  int8_t clearDB();
   int8_t isReady();
   int8_t setAudioOutput(boolean spdiv, boolean cinch);
 
@@ -59,17 +60,16 @@ public:
   int8_t setVolume(uint32_t volumeLevel);
   int8_t getVolume(uint32_t *data);
   int8_t getProgramType(uint32_t *data);
-  int8_t getProgramShortName(uint32_t programIndex, char text[]);
-  int8_t getProgramLongName(uint32_t programIndex, char text[]);
+  int8_t getProgramName(uint32_t programIndex, char text[]);
   int8_t getProgramText(char text[]);
   int8_t getSamplingRate(uint32_t *data);
   int8_t getDataRate(uint32_t *data);
   int8_t getSignalQuality(uint32_t *data);
   int8_t getFrequency(uint32_t programIndex, uint32_t *data);
-  int8_t getEnsembleShortName(uint32_t programIndex, char text[]);
-  int8_t getEnsembleLongName(uint32_t programIndex, char text[]);
+  int8_t getEnsembleName(uint32_t programIndex, char text[]);
   int8_t getProgramIndex(uint32_t *data);
   int8_t isProgramOnAir(uint32_t programIndex);
+  int8_t getServiceName(uint32_t programIndex, char text[]);
   int8_t getServiceShortName(uint32_t programIndex, char text[]);
   int8_t getServiceLongName(uint32_t programIndex, char text[]);
   int8_t getSearchIndex(uint32_t *data);

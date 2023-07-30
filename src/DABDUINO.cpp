@@ -145,8 +145,15 @@ int8_t DABDUINO::isEvent() {
 }
 
 /*
- *   Read event
- *   RETURN EVENT TYP: 1=scan finish, 2=got new DAB program text, 3=DAB reconfiguration, 4=DAB channel list order change, 5=RDS group, 6=Got new FM radio text, 7=Return the scanning frequency /FM/
+ * Read event
+ * Type 0x07: NOTIFY events
+ * Event 0x00: CMD_NOTIFY_SCAN_TERMINATE
+ * Event 0x01: CMD_NOTIFY_NEW_PROGRAM_TEXT
+ * Event 0x02: CMD_NOTIFY_DAB_RECONFIG
+ * Event 0x03: CMD_NOTIFY_DAB_SORTING_CHANGE
+ * Event 0x04: CMD_NOTIFY_RDS_RAW_DATA
+ * Event 0x05: CMD_NOTIFY_NEW_DLS_CMD
+ * 
  */
 int8_t DABDUINO::readEvent() {
   byte eventData[16];
@@ -242,11 +249,12 @@ int8_t DABDUINO::sendCommand(byte dabCommand[], byte dabData[], uint32_t *dabDat
 }
 
 // *************************
-// ***** SYSETEM ***********
+// ***** SYSTEM ***********
 // *************************
 
 /*
  *   Reset DAB module only
+ *   SYSTEM_Reset 0x01
  */
 int8_t DABDUINO::reset() {
   byte dabData[DAB_MAX_DATA_LENGTH];
@@ -262,6 +270,7 @@ int8_t DABDUINO::reset() {
 
 /*
  *   Clean DAB module database and reset module
+ *   SYSTEM_Reset 0x01
  */
 int8_t DABDUINO::resetCleanDB() {
   byte dabData[DAB_MAX_DATA_LENGTH];
@@ -276,7 +285,23 @@ int8_t DABDUINO::resetCleanDB() {
 }
 
 /*
- *   Test for DAB module is ready for communication
+ *   Clean DAB module database only
+ *   SYSTEM_Reset 0x01
+ */
+int8_t DABDUINO::clearDB() {
+  byte dabData[DAB_MAX_DATA_LENGTH];
+  uint32_t dabDataSize;
+  byte dabCommand[8] = { 0xFE, 0x00, 0x01, 0x00, 0x00, 0x01, 2, 0xFD };
+  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+/*
+  *   Test for DAB module is ready for communication
+  *   SYSTEM_GetSysRdy 0x00
  */
 int8_t DABDUINO::isReady() {
 
@@ -290,31 +315,44 @@ int8_t DABDUINO::isReady() {
   }
 }
 
+// SYSTEM_GetMCUVersion 0x02
+
+// SYSTEM_GetBootVersion 0x03
+
+// SYSTEM_GetASPVersion 0x04
+
+// SYSTEM_GetAllVersion 0x05
+
+// SYSTEM_GetModuleVersion 0x06
+
+
+
+
 /*
  *   Set audio output channels (SPDIV, CINCH /I2S DAC/)
  *   CINCH for analog output, SPDIV for optical digital output
  */
-int8_t DABDUINO::setAudioOutput(boolean spdiv = true, boolean cinch = true) {
+// int8_t DABDUINO::setAudioOutput(boolean spdiv = true, boolean cinch = true) {
 
-  byte dabData[DAB_MAX_DATA_LENGTH];
-  uint32_t dabDataSize;
-  byte s;
-  if (spdiv && spdiv) {
-    s = B00000011;
-  } else if (spdiv && !cinch) {
-    s = B00000001;
-  } else if (!spdiv && cinch) {
-    s = B00000010;
-  } else {
-    s = B00000000;
-  }
-  byte dabCommand[8] = { 0xFE, 0x00, 0x06, 0x00, 0x00, 0x01, s, 0xFD };
-  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-    return 1;
-  } else {
-    return 0;
-  }
-}
+//   byte dabData[DAB_MAX_DATA_LENGTH];
+//   uint32_t dabDataSize;
+//   byte s;
+//   if (spdiv && spdiv) {
+//     s = B00000011;
+//   } else if (spdiv && !cinch) {
+//     s = B00000001;
+//   } else if (!spdiv && cinch) {
+//     s = B00000010;
+//   } else {
+//     s = B00000000;
+//   }
+//   byte dabCommand[8] = { 0xFE, 0x00, 0x06, 0x00, 0x00, 0x01, s, 0xFD };
+//   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
+//     return 1;
+//   } else {
+//     return 0;
+//   }
+// }
 
 
 // *************************
@@ -324,6 +362,7 @@ int8_t DABDUINO::setAudioOutput(boolean spdiv = true, boolean cinch = true) {
 /*
  *   Play DAB program
  *   programIndex = 1..9999999 (see programs index)
+ *   Command 0x00: STREAM_Play
  */
 int8_t DABDUINO::playDAB(uint32_t programIndex) {
 
@@ -344,6 +383,7 @@ int8_t DABDUINO::playDAB(uint32_t programIndex) {
 /*
  *   Play FM program
  *   frequency = 87500..108000 (MHz)
+ *   Command 0x00: STREAM_Play
  */
 int8_t DABDUINO::playFM(uint32_t frequency) {
 
@@ -362,28 +402,55 @@ int8_t DABDUINO::playFM(uint32_t frequency) {
 }
 
 /*
+ *   Todo
  *   Play BEEP
+ *   Command 0x00: STREAM_Play
+ *   SINGLE TONE: the single tone rate in kHz (1-20)
+ *   0  0xFE  Start byte
+ *   1  0x01  Command type: STREAM
+ *   2  0x00  Command ID: STREAM_Play
+ *   3  0x00~0xFF Serial number
+ *   4  0x00  Packet payload length [15:8]
+ *   5  0x0A  Packet payload length [7:0]
+ *   6  0x03  Stream mode 4: BEEPER
+ *   7  0xNN  Beeper number
+ *   8  0xNN  Frequency 1(Hz) [15:8]
+ *   9  0xNN  Frequency 1(Hz) [7:0]
+ *   10 0xNN  Frequency 2(Hz) [15:8]
+ *   11 0xNN  Frequency 2(Hz) [7:0]
+ *   12 0xNN  Beeper time(ms) [15:8]
+ *   13 0xNN  Beeper time(ms) [7:0]
+ *   14 0xNN  Silent time(ms) [15:8]
+ *   15 0xNN  Silent time(ms) [7:0]
+ *   16 0xFD  End byte
  */
-int8_t DABDUINO::playBEEP() {
+int8_t DABDUINO::playBEEP(uint32_t frequency) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[12] = { 0xFE, 0x01, 0x00, 0x00, 0x00, 0x05, 0x02, 0x00, 0x00, 0x00, 0x00, 0xFD };
-  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-    return 1;
-  } else {
-    return 0;
-  }
+  byte Byte0 = ((frequency >> 0) & 0xFF);
+  byte Byte1 = ((frequency >> 8) & 0xFF);
+  byte Byte2 = ((frequency >> 16) & 0xFF);
+  byte Byte3 = ((frequency >> 24) & 0xFF);
+  byte dabCommand[12] = { 0xFE, 0x01, 0x00, 0x00, 0x00, 0x05, 0x02, Byte3, Byte2, Byte1, Byte0, 0xFD };
+  // if (sendCommand(dabCommand, dabData, &dabDataSize)) {
+  //   return 1;
+  // } else {
+  //   return 0;
+  // }
+  //for now just return 0
+  return 0;
 }
 
 /*
  *   Play STOP
+ *   Command 0x02: STREAM_Stop
  */
 int8_t DABDUINO::playSTOP() {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x01, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x02, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -394,6 +461,7 @@ int8_t DABDUINO::playSTOP() {
 /*
  * Search DAB bands for programs
  * zone: 1=BAND-3, 2=CHINA-BAND, 3=L-BAND
+ * Command 0x04: STREAM_AutoSearch
  */
 
 int8_t DABDUINO::searchDAB(uint32_t band = 1) {
@@ -419,7 +487,7 @@ int8_t DABDUINO::searchDAB(uint32_t band = 1) {
     break;
   }
 
-  byte dabCommand[9] = { 0xFE, 0x01, 0x03, 0x00, 0x00, 0x02, chStart, chEnd, 0xFD };
+  byte dabCommand[9] = { 0xFE, 0x01, 0x04, 0x00, 0x00, 0x02, chStart, chEnd, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -429,6 +497,7 @@ int8_t DABDUINO::searchDAB(uint32_t band = 1) {
 
 /*
  * Seek FM program - searchDirection: 0=backward, 1=forward
+ * Command 0x03: STREAM_Search
  */
 int8_t DABDUINO::searchFM(uint32_t searchDirection) {
 
@@ -436,7 +505,7 @@ int8_t DABDUINO::searchFM(uint32_t searchDirection) {
   uint32_t dabDataSize;
   if (searchDirection < 0) searchDirection = 0;
   if (searchDirection > 1) searchDirection = 1;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x02, 0x00, 0x00, 0x01, searchDirection, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x03, 0x00, 0x00, 0x01, searchDirection, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -446,13 +515,23 @@ int8_t DABDUINO::searchFM(uint32_t searchDirection) {
 
 /*
  *   Radio module play status
- *   return data: 0=playing, 1=searching, 2=tuning, 3=stop, 4=sorting change, 5=reconfiguration
+ *   return data: 0=playing, 1=searching, 2=tuning, 3=stop
+ *   Change event bitmask.
+ *   BIT0: Program name change
+ *   BIT1: Program text change
+ *   BIT2: DLS command change
+ *   BIT3: Stereo mode change
+ *   BIT4: Service update
+ *   BIT5: Sort change
+ *   BIT6: Frequency change
+ *   BIT7: Time change
+ *   Command 0x10:STREAM_GetPlayStatus
  */
 int8_t DABDUINO::playStatus(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x05, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x10, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -468,19 +547,20 @@ int8_t DABDUINO::playStatus(uint32_t *data) {
 /*
  *   Radio module play mode
  *   return data: 0=DAB, 1=FM, 2=BEEP, 255=Stream stop
+ *   Command 0x11: STREAM_GetPlayMode
  */
 int8_t DABDUINO::playMode(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x06, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x11, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       if (dabData[0] != 0xFF) {
         *data = (uint32_t)dabData[0];
         return 1;
       } else {
-        *data = (uint32_t)dabData[0];
+        *data = (uint32_t)dabData[0]; // huh ???
         return 1;
       }
     } else {
@@ -493,12 +573,13 @@ int8_t DABDUINO::playMode(uint32_t *data) {
 
 /*
  * Get DAB station index, get tuned FM station frequency
+ * Command 0x12: STREAM_GetPlayIndex
  */
 int8_t DABDUINO::getPlayIndex(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x07, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x12, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize == 4) {
       *data = (((long)dabData[0] << 24) + ((long)dabData[1] << 16) + ((long)dabData[2] << 8) + (long)dabData[3]);
@@ -514,12 +595,13 @@ int8_t DABDUINO::getPlayIndex(uint32_t *data) {
  * Get signal strength
  * DAB: signalStrength=0..18, bitErrorRate=
  * FM: signalStrength=0..100
+ * Command 0x15: STREAM_GetSignalStrength
  */
 int8_t DABDUINO::getSignalStrength(uint32_t *signalStrength, uint32_t *bitErrorRate) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x08, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x15, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     *signalStrength = (uint32_t)dabData[0];
     *bitErrorRate = 0;
@@ -535,6 +617,7 @@ int8_t DABDUINO::getSignalStrength(uint32_t *signalStrength, uint32_t *bitErrorR
 /*
  *   Set stereo mode
  *   true=stereo, false=force mono
+ *   Command 0x20: STREAM_SetStereoMode
  */
 int8_t DABDUINO::setStereoMode(boolean stereo = true) {
 
@@ -544,7 +627,7 @@ int8_t DABDUINO::setStereoMode(boolean stereo = true) {
   }
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x09, 0x00, 0x00, 0x01, value, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x20, 0x00, 0x00, 0x01, value, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -555,12 +638,13 @@ int8_t DABDUINO::setStereoMode(boolean stereo = true) {
 /*
  *   Get stereo mode
  *   0=force mono, 1=auto detect stereo
+ *   Command 0x21: STREAM_GetStereoMode
  */
 int8_t DABDUINO::getStereoMode(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x0A, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x21, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -575,13 +659,14 @@ int8_t DABDUINO::getStereoMode(uint32_t *data) {
 
 /*
  *   Get stereo type
- *   return data: 0=stereo, 1=join stereo, 2=dual channel, 3=single channel (mono)
+ *   return data: 0=stereo, 1=joint stereo, 2=dual channel, 3=single channel (mono)
+ *   Command 0x16: STREAM_GetStereo
  */
 int8_t DABDUINO::getStereoType(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x0B, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x16, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -597,6 +682,7 @@ int8_t DABDUINO::getStereoType(uint32_t *data) {
 /*
  *   Set volume
  *   volumeLevel = 0..16
+ *   Command 0x22: STREAM_SetVolume
  */
 int8_t DABDUINO::setVolume(uint32_t volumeLevel) {
 
@@ -604,7 +690,7 @@ int8_t DABDUINO::setVolume(uint32_t volumeLevel) {
   uint32_t dabDataSize;
   if (volumeLevel < 0) volumeLevel = 0;
   if (volumeLevel > 16)  volumeLevel = 16;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x0C, 0x00, 0x00, 0x01, volumeLevel, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x22, 0x00, 0x00, 0x01, volumeLevel, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -615,12 +701,13 @@ int8_t DABDUINO::setVolume(uint32_t volumeLevel) {
 /*
  *   Get volume
  *   return set volumeLevel: 0..16
+ *   Command 0x23: STREAM_GetVolume
  */
 int8_t DABDUINO::getVolume(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x0D, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x23, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -636,12 +723,13 @@ int8_t DABDUINO::getVolume(uint32_t *data) {
 /*
  *   Get program type
  *   0=N/A, 1=News, 2=Curent Affairs, 3=Information, 4=Sport, 5=Education, 6=Drama, 7=Arts, 8=Science, 9=Talk, 10=Pop music, 11=Rock music, 12=Easy listening, 13=Light Classical, 14=Classical music, 15=Other music, 16=Weather, 17=Finance, 18=Children's, 19=Factual, 20=Religion, 21=Phone in, 22=Travel, 23=Leisure, 24=Jazz & Blues, 25=Country music, 26=National music, 27=Oldies music, 28=Folk Music, 29=Documentary, 30=undefined, 31=undefined
+ *   Command 0x2C: STREAM_GetProgrameType
  */
 int8_t DABDUINO::getProgramType(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x0E, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x2C, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -656,8 +744,9 @@ int8_t DABDUINO::getProgramType(uint32_t *data) {
 
 /*
  * Get DAB station short name
+ * Command 0x2D: STREAM_GetProgrameName
  */
-int8_t DABDUINO::getProgramShortName(uint32_t programIndex, char text[]) {
+int8_t DABDUINO::getProgramName(uint32_t programIndex, char text[]) {
 
   byte Byte0 = ((programIndex >> 0) & 0xFF);
   byte Byte1 = ((programIndex >> 8) & 0xFF);
@@ -665,30 +754,7 @@ int8_t DABDUINO::getProgramShortName(uint32_t programIndex, char text[]) {
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[12] = { 0xFE, 0x01, 0x0F, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x00, 0xFD };
-  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-    uint32_t j = 0;
-    for (uint32_t i = 0; i < dabDataSize; i = i + 2) {
-      text[j++] = (char)charToAscii(dabData[i], dabData[i + 1]);
-    }
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-/*
- * Get DAB station long name
- */
-int8_t DABDUINO::getProgramLongName(uint32_t programIndex, char text[]) {
-
-  byte Byte0 = ((programIndex >> 0) & 0xFF);
-  byte Byte1 = ((programIndex >> 8) & 0xFF);
-  byte Byte2 = ((programIndex >> 16) & 0xFF);
-  byte Byte3 = ((programIndex >> 24) & 0xFF);
-  byte dabData[DAB_MAX_DATA_LENGTH];
-  uint32_t dabDataSize;
-  byte dabCommand[12] = { 0xFE, 0x01, 0x0F, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x01, 0xFD };
+  byte dabCommand[12] = { 0xFE, 0x01, 0x2D, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     uint32_t j = 0;
     for (uint32_t i = 0; i < dabDataSize; i = i + 2) {
@@ -704,6 +770,7 @@ int8_t DABDUINO::getProgramLongName(uint32_t programIndex, char text[]) {
  * Get DAB text event
  * return: 1=new text, 2=text is same, 3=no text
  * dabText: text
+ * 0x2E: STREAM_GetProgrameText
  */
 int8_t DABDUINO::getProgramText(char text[]) {
 
@@ -711,7 +778,7 @@ int8_t DABDUINO::getProgramText(char text[]) {
   memcpy(textLast, text, sizeof(text[0])*DAB_MAX_TEXT_LENGTH);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x10, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x2E, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize == 1) {
       text[0] = dabData[0]; // 0=There is no text in programe, 1=The program text received, but no text available
@@ -736,12 +803,13 @@ int8_t DABDUINO::getProgramText(char text[]) {
 /*
  *   Get sampling rate (DAB/FM)
  *   return data: 1=32kHz, 2=24kHz, 3=48kHz
+ *   Command 0x18: STREAM_GetSamplingRate
  */
 int8_t DABDUINO::getSamplingRate(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x11, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x18, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -757,12 +825,13 @@ int8_t DABDUINO::getSamplingRate(uint32_t *data) {
 /*
  *   Get data rate (DAB)
  *   return data: data rate in kbps
+ *   Command 0x47: STREAM_GetDataRate
  */
 int8_t DABDUINO::getDataRate(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x12, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x47, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (((long)dabData[0] << 8) + (long)dabData[1]);
@@ -781,12 +850,13 @@ int8_t DABDUINO::getDataRate(uint32_t *data) {
  *   0..19 = playback stop
  *   20..30 = the noise (short break) appears
  *   100 = the bit error rate is 0
+ *   Command 0x48: STREAM_GetSignalQuality
  */
 int8_t DABDUINO::getSignalQuality(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x13, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x48, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -805,6 +875,7 @@ int8_t DABDUINO::getSignalQuality(uint32_t *data) {
  *   0=174.928MHz, 1=176.64, 2=178.352,...
  *
  *  // TODO: add conversion table for index2freqency
+ *  Command 0x46: STREAM_GetFrequency
  */
 int8_t DABDUINO::getFrequency(uint32_t programIndex, uint32_t *data) {
 
@@ -814,7 +885,7 @@ int8_t DABDUINO::getFrequency(uint32_t programIndex, uint32_t *data) {
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[11] = { 0xFE, 0x01, 0x14, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
+  byte dabCommand[11] = { 0xFE, 0x01, 0x46, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -828,9 +899,10 @@ int8_t DABDUINO::getFrequency(uint32_t programIndex, uint32_t *data) {
 }
 
 /*
- * Get DAB program ensemble short name
+ * Get DAB program ensemble name
+ * Command 0x41: STREAM_GetEnsembleName
  */
-int8_t DABDUINO::getEnsembleShortName(uint32_t programIndex, char text[]) {
+int8_t DABDUINO::getEnsembleName(uint32_t programIndex, char text[]) {
 
   byte Byte0 = ((programIndex >> 0) & 0xFF);
   byte Byte1 = ((programIndex >> 8) & 0xFF);
@@ -838,30 +910,7 @@ int8_t DABDUINO::getEnsembleShortName(uint32_t programIndex, char text[]) {
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[12] = { 0xFE, 0x01, 0x15, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x00, 0xFD };
-  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-    uint32_t j = 0;
-    for (uint32_t i = 0; i < dabDataSize; i = i + 2) {
-      text[j++] = (char)charToAscii(dabData[i], dabData[i + 1]);
-    }
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-/*
- * Get DAB program ensemble long name
- */
-int8_t DABDUINO::getEnsembleLongName(uint32_t programIndex, char text[]) {
-
-  byte Byte0 = ((programIndex >> 0) & 0xFF);
-  byte Byte1 = ((programIndex >> 8) & 0xFF);
-  byte Byte2 = ((programIndex >> 16) & 0xFF);
-  byte Byte3 = ((programIndex >> 24) & 0xFF);
-  byte dabData[DAB_MAX_DATA_LENGTH];
-  uint32_t dabDataSize;
-  byte dabCommand[12] = { 0xFE, 0x01, 0x15, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x01, 0xFD };
+  byte dabCommand[12] = { 0xFE, 0x01, 0x41, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     uint32_t j = 0;
     for (uint32_t i = 0; i < dabDataSize; i = i + 2) {
@@ -875,12 +924,13 @@ int8_t DABDUINO::getEnsembleLongName(uint32_t programIndex, char text[]) {
 
 /*
  * Get DAB stations index (number of programs in database)
+ * Command 0x13: STREAM_GetTotalProgram
  */
 int8_t DABDUINO::getProgramIndex(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x16, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x13, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize == 4) {
       *data = (((long)dabData[0] << 24) + ((long)dabData[1] << 16) + ((long)dabData[2] << 8) + (long)dabData[3]);
@@ -895,6 +945,7 @@ int8_t DABDUINO::getProgramIndex(uint32_t *data) {
 /*
  *   Test DAB program is active (on-air)
  *   return: 0=off-air, 1=on-air
+ *   Command 0x44: STREAM_IsActive
  */
 int8_t DABDUINO::isProgramOnAir(uint32_t programIndex) {
 
@@ -904,7 +955,7 @@ int8_t DABDUINO::isProgramOnAir(uint32_t programIndex) {
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[11] = { 0xFE, 0x01, 0x17, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
+  byte dabCommand[11] = { 0xFE, 0x01, 0x44, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       return (uint32_t)dabData[0];
@@ -918,8 +969,9 @@ int8_t DABDUINO::isProgramOnAir(uint32_t programIndex) {
 
 /*
  * Get DAB program service short name
+ * Command 0x42: STREAM_GetServiceName
  */
-int8_t DABDUINO::getServiceShortName(uint32_t programIndex, char text[]) {
+int8_t DABDUINO::getServiceName(uint32_t programIndex, char text[]) {
 
   byte Byte0 = ((programIndex >> 0) & 0xFF);
   byte Byte1 = ((programIndex >> 8) & 0xFF);
@@ -927,7 +979,7 @@ int8_t DABDUINO::getServiceShortName(uint32_t programIndex, char text[]) {
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[12] = { 0xFE, 0x01, 0x1A, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x00, 0xFD };
+  byte dabCommand[12] = { 0xFE, 0x01, 0x42, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     uint32_t j = 0;
     for (uint32_t i = 0; i < dabDataSize; i = i + 2) {
@@ -939,37 +991,25 @@ int8_t DABDUINO::getServiceShortName(uint32_t programIndex, char text[]) {
   }
 }
 
+int8_t DABDUINO::getServiceShortName(uint32_t programIndex, char text[]) {
+  return  DABDUINO::getServiceName(programIndex, text);
+}
 /*
  * Get DAB program service long name
  */
 int8_t DABDUINO::getServiceLongName(uint32_t programIndex, char text[]) {
-
-  byte Byte0 = ((programIndex >> 0) & 0xFF);
-  byte Byte1 = ((programIndex >> 8) & 0xFF);
-  byte Byte2 = ((programIndex >> 16) & 0xFF);
-  byte Byte3 = ((programIndex >> 24) & 0xFF);
-  byte dabData[DAB_MAX_DATA_LENGTH];
-  uint32_t dabDataSize;
-  byte dabCommand[12] = { 0xFE, 0x01, 0x1A, 0x00, 0x00, 0x05, Byte3, Byte2, Byte1, Byte0, 0x01, 0xFD };
-  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-    uint32_t j = 0;
-    for (uint32_t i = 0; i < dabDataSize; i = i + 2) {
-      text[j++] = (char)charToAscii(dabData[i], dabData[i + 1]);
-    }
-    return 1;
-  } else {
-    return 0;
-  }
+ return  DABDUINO::getServiceName(programIndex, text);
 }
 
 /*
  * Get DAB search index (number of programs found in search process)
+ * Command 0x14: STREAM_GetSearchProgram
  */
 int8_t DABDUINO::getSearchIndex(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x1B, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x14, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -985,6 +1025,7 @@ int8_t DABDUINO::getSearchIndex(uint32_t *data) {
 /*
  * Get DAB program service component type (ASCTy)
  * return data: 0=DAB, 1=DAB+, 2=Packet data, 3=DMB (stream data)
+ * Command 0x40: STREAM_GetServCompType
  */
 int8_t DABDUINO::getServCompType(uint32_t programIndex, uint32_t *data) {
 
@@ -994,7 +1035,7 @@ int8_t DABDUINO::getServCompType(uint32_t programIndex, uint32_t *data) {
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[11] = { 0xFE, 0x01, 0x1E, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
+  byte dabCommand[11] = { 0xFE, 0x01, 0x40, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -1011,6 +1052,7 @@ int8_t DABDUINO::getServCompType(uint32_t programIndex, uint32_t *data) {
  *   programIndex = DAB: programIndex, FM: frequency
  *   presetIndex = 0..9
  *   presetMode = 0=DAB, 1=FM
+ *   Command 0x24: STREAM_SetPreset
  */
 int8_t DABDUINO::setPreset(uint32_t programIndex, uint32_t presetIndex, uint32_t presetMode) {
 
@@ -1020,7 +1062,7 @@ int8_t DABDUINO::setPreset(uint32_t programIndex, uint32_t presetIndex, uint32_t
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[13] = { 0xFE, 0x01, 0x21, 0x00, 0x00, 0x06, presetMode, presetIndex, Byte3, Byte2, Byte1, Byte0, 0xFD };
+  byte dabCommand[13] = { 0xFE, 0x01, 0x24, 0x00, 0x00, 0x06, presetMode, presetIndex, Byte3, Byte2, Byte1, Byte0, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -1032,12 +1074,13 @@ int8_t DABDUINO::setPreset(uint32_t programIndex, uint32_t presetIndex, uint32_t
  *  Get preset
  *  presetIndex = 0..9
  *  presetMode = 0=DAB, 1=FM
+ *  Command 0x25: STREAM_GetPreset
  */
 int8_t DABDUINO::getPreset(uint32_t presetIndex, uint32_t presetMode, uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[9] = { 0xFE, 0x01, 0x22, 0x00, 0x00, 0x02, presetMode, presetIndex, 0xFD };
+  byte dabCommand[9] = { 0xFE, 0x01, 0x25, 0x00, 0x00, 0x02, presetMode, presetIndex, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if(dabDataSize) {
       *data = (((long)dabData[0] << 24) + ((long)dabData[1] << 16) + ((long)dabData[2] << 8) + (long)dabData[3]);
@@ -1052,6 +1095,7 @@ int8_t DABDUINO::getPreset(uint32_t presetIndex, uint32_t presetMode, uint32_t *
  * Get program info
  * return serviceId = service id of DAB program
  * return ensembleId = ensemble id of DAB program
+ * Command 0x49: STREAM_ProgrameInfo
  */
 int8_t DABDUINO::getProgramInfo(uint32_t programIndex, uint32_t *serviceId, uint32_t *ensembleId) {
 
@@ -1061,7 +1105,7 @@ int8_t DABDUINO::getProgramInfo(uint32_t programIndex, uint32_t *serviceId, uint
   byte Byte3 = ((programIndex >> 24) & 0xFF);
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[11] = { 0xFE, 0x01, 0x23, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
+  byte dabCommand[11] = { 0xFE, 0x01, 0x49, 0x00, 0x00, 0x04, Byte3, Byte2, Byte1, Byte0, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *serviceId = (((long)dabData[0] << 24) + ((long)dabData[1] << 16) + ((long)dabData[2] << 8) + (long)dabData[3]);
@@ -1077,12 +1121,13 @@ int8_t DABDUINO::getProgramInfo(uint32_t programIndex, uint32_t *serviceId, uint
 /*
  * Get program sorter
  * return data = 0=sort by ensembleID, 1=sort by service name, 2=sort by active and inactive program
+ * Command 0x2B: STREAM_GetSorter
  */
 int8_t DABDUINO::getProgramSorter(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x24, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x2B, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -1095,14 +1140,15 @@ int8_t DABDUINO::getProgramSorter(uint32_t *data) {
 }
 
 /*
- *   Set program sorter
- *   sortMethod = 0=sort by ensembleID, 1=sort by service name, 2=sort by active and inactive program
+ * Set program sorter
+ * sortMethod = 0=sort by ensembleID, 1=sort by service name, 2=sort by active and inactive program
+ * Command 0x2A: STREAM_SetSorter
  */
 int8_t DABDUINO::setProgramSorter(uint32_t sortMethod) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x25, 0x00, 0x00, 0x01, sortMethod, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x2A, 0x00, 0x00, 0x01, sortMethod, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -1113,12 +1159,13 @@ int8_t DABDUINO::setProgramSorter(uint32_t sortMethod) {
 /*
  * Get DRC
  * return data = 0=DRC off, 1=DRC low, 2=DRC high
+ * Command 0x4D: STREAM_GetDrc
  */
 int8_t DABDUINO::getDRC(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x26, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x4D, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -1131,14 +1178,15 @@ int8_t DABDUINO::getDRC(uint32_t *data) {
 }
 
 /*
- *   Set DRC
- *   setDRC = 0=DRC off, 1=DRC low, 2=DRC high
+ * Set DRC
+ * setDRC = 0=DRC off, 1=DRC low, 2=DRC high
+ * Command 0x4C: STREAM_SetDrc
  */
 int8_t DABDUINO::setDRC(uint32_t setDRC) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x27, 0x00, 0x00, 0x01, setDRC, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x4C, 0x00, 0x00, 0x01, setDRC, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -1148,14 +1196,14 @@ int8_t DABDUINO::setDRC(uint32_t setDRC) {
 
 
 /*
- *   Prune programs - delete inactive programs (!on-air)
- *
+ * Prune programs - delete inactive programs (!on-air)
+ * Command 0x45: STREAM_PruneStation
  */
 int8_t DABDUINO::prunePrograms(uint32_t *prunedTotalPrograms, uint32_t *prunedProgramIndex) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x2B, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x45, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *prunedTotalPrograms = (((long)dabData[0] << 8) + (long)dabData[1]);
@@ -1172,12 +1220,13 @@ int8_t DABDUINO::prunePrograms(uint32_t *prunedTotalPrograms, uint32_t *prunedPr
  * Get ECC
  * return ECC (Extended Country Code)
  * return countryId (Country identification)
+ * Command 0x4B: STREAM_GetECC
  */
 int8_t DABDUINO::getECC(uint32_t *ECC, uint32_t *countryId) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x2D, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x4B, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *ECC = (uint32_t)dabData[0];
@@ -1193,12 +1242,13 @@ int8_t DABDUINO::getECC(uint32_t *ECC, uint32_t *countryId) {
 /*
  * Get FM RDS PI code
  * return PI code
+ * Command 0x68: STREAM_GetRdsPIcode
  */
 int8_t DABDUINO::getRdsPIcode(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x2E, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x68, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (((long)dabData[0] << 8) + (long)dabData[1]);
@@ -1211,14 +1261,15 @@ int8_t DABDUINO::getRdsPIcode(uint32_t *data) {
 }
 
 /*
- *   Set FMstereoThdLevel
- *   RSSItresholdLevel = 0..10
+ * Set FMstereoThdLevel
+ * RSSItresholdLevel = 0..10
+ * Command 0x66: STREAM_SetFMSeekNoiseThd
  */
 int8_t DABDUINO::setFMstereoThdLevel(uint32_t RSSItresholdLevel) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x30, 0x00, 0x00, 0x01, RSSItresholdLevel, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x66, 0x00, 0x00, 0x01, RSSItresholdLevel, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -1227,14 +1278,15 @@ int8_t DABDUINO::setFMstereoThdLevel(uint32_t RSSItresholdLevel) {
 }
 
 /*
- *   Get FMstereoThdLevel
- *   data return = 0..10
+ * Get FMstereoThdLevel
+ * data return = 0..10
+ * 0x67: STREAM_GetFMSeekNoiseThd
  */
 int8_t DABDUINO::getFMstereoThdLevel(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x31, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x67, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -1247,12 +1299,13 @@ int8_t DABDUINO::getFMstereoThdLevel(uint32_t *data) {
 }
 
 /*
+ * Todo
  * Get RDS raw data
  * return: 1=new RDS data, 2=no new RDS data, 3=no RDS data
  */
 int8_t DABDUINO::getRDSrawData(uint32_t *RDSblockA, uint32_t *RDSblockB, uint32_t *RDSblockC, uint32_t *RDSblockD, uint32_t *BlerA, uint32_t *BlerB, uint32_t *BlerC, uint32_t *BlerD) {
 
-  byte dabData[DAB_MAX_DATA_LENGTH];
+/*   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
   byte dabCommand[7] = { 0xFE, 0x01, 0x32, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
@@ -1276,18 +1329,20 @@ int8_t DABDUINO::getRDSrawData(uint32_t *RDSblockA, uint32_t *RDSblockB, uint32_
     return 0;
   } else {
     return 0;
-  }
+  } */
+  return 0;
 }
 
 /*
- *   Set FMseekTreshold
- *   RSSItreshold = 0..100
+ * Set FMseekTreshold
+ * RSSItreshold = 0..100
+ * Command 0x64: STREAM_SetFMSeekRSSIThd
  */
 int8_t DABDUINO::setFMseekTreshold(uint32_t RSSItreshold) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x35, 0x00, 0x00, 0x01, RSSItreshold, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x64, 0x00, 0x00, 0x01, RSSItreshold, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -1296,14 +1351,15 @@ int8_t DABDUINO::setFMseekTreshold(uint32_t RSSItreshold) {
 }
 
 /*
- *   Get FMseekTreshold
- *   data return = 0..100
+ * Get FMseekTreshold
+ * data return = 0..100
+ * Command 0x65: STREAM_GetFMSeekRSSIThd
  */
 int8_t DABDUINO::getFMseekTreshold(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x36, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x65, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -1316,14 +1372,16 @@ int8_t DABDUINO::getFMseekTreshold(uint32_t *data) {
 }
 
 /*
- *   Set FMstereoTreshold
- *   RSSItreshold = 0..100
+ * Set FMstereoTreshold
+ * Set FM noice threshold value for stereo switching
+ * RSSIthreshold = 0..10
+ * Command 0x62: STREAM_SetFMStereoNoiseThd
  */
 int8_t DABDUINO::setFMstereoTreshold(uint32_t RSSIstereoTreshold) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[8] = { 0xFE, 0x01, 0x37, 0x00, 0x00, 0x01, RSSIstereoTreshold, 0xFD };
+  byte dabCommand[8] = { 0xFE, 0x01, 0x62, 0x00, 0x00, 0x01, RSSIstereoTreshold, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     return 1;
   } else {
@@ -1332,14 +1390,15 @@ int8_t DABDUINO::setFMstereoTreshold(uint32_t RSSIstereoTreshold) {
 }
 
 /*
- *   Get FMstereoTreshold
- *   data return = 0..100
+ * Get FMstereoTreshold
+ * data return = 0..10
+ * Command 0x63: STREAM_GetFMStereoNoiseThd
  */
 int8_t DABDUINO::getFMstereoTreshold(uint32_t *data) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x38, 0x00, 0x00, 0x00, 0xFD };
+  byte dabCommand[7] = { 0xFE, 0x01, 0x63, 0x00, 0x00, 0x00, 0xFD };
   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
     if (dabDataSize) {
       *data = (uint32_t)dabData[0];
@@ -1352,11 +1411,12 @@ int8_t DABDUINO::getFMstereoTreshold(uint32_t *data) {
 }
 
 /*
- *   Get FM Exact station
- *   data return: 0=current station is not exact frequency, 1=current station is exact frequency, 0xFE=no station information yet
+ * Todo
+ * Get FM Exact station
+ * data return: 0=current station is not exact frequency, 1=current station is exact frequency, 0xFE=no station information yet
  */
 int8_t DABDUINO::getFMexactStation(uint32_t *data) {
-
+/* 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
   byte dabCommand[7] = { 0xFE, 0x01, 0x39, 0x00, 0x00, 0x00, 0xFD };
@@ -1368,16 +1428,19 @@ int8_t DABDUINO::getFMexactStation(uint32_t *data) {
     return 0;
   } else {
     return 0;
-  }
+  } */
+  return 0;
 }
 
 // *************************
 // ***** RTC ***************
+// * command type 0x02 RTC *
 // *************************
 
 /*
- *  Set RTC clock
- *  year: 2017=17,2018=18, month: 1..12, day: 1..31, hour: 0..23, minute: 0..59, second: 0..59 
+ * Set RTC clock
+ * year: 2017=17,2018=18, month: 1..12, day: 1..31, hour: 0..23, minute: 0..59, second: 0..59 
+ * Command 0x00: RTC_SetClock
  */
 int8_t DABDUINO::setRTCclock(uint32_t year, uint32_t month, uint32_t day, uint32_t hour, uint32_t minute, uint32_t second) {
 
@@ -1392,8 +1455,9 @@ int8_t DABDUINO::setRTCclock(uint32_t year, uint32_t month, uint32_t day, uint32
 }
 
 /*
- *  Get RTC ckock
- *  year: 2017=17,2018=18, month: 1..12, week: 0(sat)..6(fri), day: 1..31, hour: 0..23, minute: 0..59, second: 0..59 
+ * Get RTC ckock
+ * year: 2017=17,2018=18, month: 1..12, week: 0(sat)..6(fri), day: 1..31, hour: 0..23, minute: 0..59, second: 0..59 
+ * Command 0x01: RTC_GetClock
  */
 int8_t DABDUINO::getRTCclock(uint32_t *year, uint32_t *month, uint32_t *week, uint32_t *day, uint32_t *hour, uint32_t *minute, uint32_t *second) {
 
@@ -1418,7 +1482,8 @@ int8_t DABDUINO::getRTCclock(uint32_t *year, uint32_t *month, uint32_t *week, ui
 }
 
 /*
- *  Set RTC sync clock from stream enable
+ * Set RTC sync clock from stream enable
+ * 0x02: RTC_EnableSyncClock
  */
 int8_t DABDUINO::RTCsyncEnable() {
 
@@ -1448,8 +1513,9 @@ int8_t DABDUINO::RTCsyncDisable() {
 }
 
 /*
- *  Get RTC sync clock status
- *  return data: 0=disable, 1=enable 
+ * Get RTC sync clock status
+ * return data: 0=disable, 1=enable 
+ * Command 0x03: RTC_GetSyncClockStatus
  */
 int8_t DABDUINO::getRTCsyncStatus(uint32_t *data) {
 
@@ -1468,8 +1534,9 @@ int8_t DABDUINO::getRTCsyncStatus(uint32_t *data) {
 }
 
 /*
- *  Get RTC clock status
- *  return data: 0=unset, 1=set 
+ * Get RTC clock status
+ * return data: 0=unset, 1=set 
+ * Command 0x04: RTC_GetClockStatus
  */
 int8_t DABDUINO::getRTCclockStatus(uint32_t *data) {
 
