@@ -36,7 +36,7 @@ enum {
   SPI_CLK,
   SPI_CS,
   SPI_DI,
-}
+};
 
 /* 
  * Driving strength on GPIO pins
@@ -46,7 +46,7 @@ enum {
   STRENGTH_4MA,
   STRENGTH_6MA,
   STRENGTH_8MA,
-}
+};
 
 /*
  * Convert two byte char from DAB to one byte char. Add next chars...
