@@ -38,7 +38,6 @@ public:
   int8_t resetCleanDB();
   int8_t clearDB();
   int8_t isReady();
-  int8_t setAudioOutput(boolean spdiv, boolean cinch);
 
   // *************************
   // ***** STREAM ************
@@ -46,7 +45,7 @@ public:
 
   int8_t playDAB(uint32_t programIndex);
   int8_t playFM(uint32_t frequency);
-  int8_t playBEEP();
+  int8_t playBEEP(uint32_t frequency, uint32_t beepTime, uint32_t silentTime);
   int8_t playSTOP();
   int8_t searchDAB(uint32_t band);
   int8_t searchFM(uint32_t seekDirection);
@@ -70,8 +69,6 @@ public:
   int8_t getProgramIndex(uint32_t *data);
   int8_t isProgramOnAir(uint32_t programIndex);
   int8_t getServiceName(uint32_t programIndex, char text[]);
-  int8_t getServiceShortName(uint32_t programIndex, char text[]);
-  int8_t getServiceLongName(uint32_t programIndex, char text[]);
   int8_t getSearchIndex(uint32_t *data);
   int8_t getServCompType(uint32_t programIndex, uint32_t *data);
   int8_t setPreset(uint32_t programIndex, uint32_t presetIndex, uint32_t presetMode);
@@ -86,12 +83,10 @@ public:
   int8_t getRdsPIcode(uint32_t *data);
   int8_t setFMstereoThdLevel(uint32_t RSSItresholdLevel);
   int8_t getFMstereoThdLevel(uint32_t *data);
-  int8_t getRDSrawData(uint32_t *RDSblockA, uint32_t *RDSblockB, uint32_t *RDSblockC, uint32_t *RDSblockD, uint32_t *BlerA, uint32_t *BlerB, uint32_t *BlerC, uint32_t *BlerD);
   int8_t setFMseekTreshold(uint32_t RSSItreshold);
   int8_t getFMseekTreshold(uint32_t *data);
   int8_t setFMstereoTreshold(uint32_t RSSIstereoTreshold);
   int8_t getFMstereoTreshold(uint32_t *data);
-  int8_t getFMexactStation(uint32_t *data);
 
   // *************************
   // ***** RTC ***************
@@ -116,6 +111,13 @@ public:
 
   int8_t eventNotificationEnable();
   int8_t eventNotificationDisable();
+
+
+// *************************
+// ***** GPIO **************
+// *************************
+int8_t setGPIO(uint32_t gpioIndex, uint32_t gpioFunction, uint32_t drivingStrength);
+int8_t setI2sMode(boolean toggle);
 
 
 

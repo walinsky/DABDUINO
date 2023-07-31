@@ -16,6 +16,38 @@ DABDUINO::DABDUINO(HardwareSerial& serial, int8_t RESET_PIN, int8_t DAC_MUTE_PIN
 
 }
 
+/* 
+ * GPIO functions
+ */
+enum {
+  DATA_IN,
+  DATA_OUT,
+  MUTE,
+  I2S_DATA_IN,
+  I2S_LRCLK_IN,
+  I2S_SSCLK_IN,
+  I2S_BCLK_IN,
+  I2S_DATA_OUT,
+  I2S_LRCLK_OUT,
+  I2S_SSCLK_OUT,
+  I2S_BCLK_OUT,
+  SPDIF_OUT,
+  SPI_DO,
+  SPI_CLK,
+  SPI_CS,
+  SPI_DI
+}
+
+/* 
+ * Driving strength on GPIO pins
+ */
+enum {
+  STRENGTH_2MA,
+  STRENGTH_4MA,
+  STRENGTH_6MA,
+  STRENGTH_8MA
+}
+
 /*
  * Convert two byte char from DAB to one byte char. Add next chars...
  */
@@ -153,6 +185,7 @@ int8_t DABDUINO::isEvent() {
  * Event 0x03: CMD_NOTIFY_DAB_SORTING_CHANGE
  * Event 0x04: CMD_NOTIFY_RDS_RAW_DATA
  * Event 0x05: CMD_NOTIFY_NEW_DLS_CMD
+ * Event 0x06: CMD_NOTIFY_SCAN_FREQUENCY
  * 
  */
 int8_t DABDUINO::readEvent() {
@@ -326,35 +359,6 @@ int8_t DABDUINO::isReady() {
 // SYSTEM_GetModuleVersion 0x06
 
 
-
-
-/*
- *   Set audio output channels (SPDIV, CINCH /I2S DAC/)
- *   CINCH for analog output, SPDIV for optical digital output
- */
-// int8_t DABDUINO::setAudioOutput(boolean spdiv = true, boolean cinch = true) {
-
-//   byte dabData[DAB_MAX_DATA_LENGTH];
-//   uint32_t dabDataSize;
-//   byte s;
-//   if (spdiv && spdiv) {
-//     s = B00000011;
-//   } else if (spdiv && !cinch) {
-//     s = B00000001;
-//   } else if (!spdiv && cinch) {
-//     s = B00000010;
-//   } else {
-//     s = B00000000;
-//   }
-//   byte dabCommand[8] = { 0xFE, 0x00, 0x06, 0x00, 0x00, 0x01, s, 0xFD };
-//   if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-//     return 1;
-//   } else {
-//     return 0;
-//   }
-// }
-
-
 // *************************
 // ***** STREAM ************
 // *************************
@@ -401,45 +405,32 @@ int8_t DABDUINO::playFM(uint32_t frequency) {
   }
 }
 
-/*
- *   Todo
- *   Play BEEP
- *   Command 0x00: STREAM_Play
- *   SINGLE TONE: the single tone rate in kHz (1-20)
- *   0  0xFE  Start byte
- *   1  0x01  Command type: STREAM
- *   2  0x00  Command ID: STREAM_Play
- *   3  0x00~0xFF Serial number
- *   4  0x00  Packet payload length [15:8]
- *   5  0x0A  Packet payload length [7:0]
- *   6  0x03  Stream mode 4: BEEPER
- *   7  0xNN  Beeper number
- *   8  0xNN  Frequency 1(Hz) [15:8]
- *   9  0xNN  Frequency 1(Hz) [7:0]
- *   10 0xNN  Frequency 2(Hz) [15:8]
- *   11 0xNN  Frequency 2(Hz) [7:0]
- *   12 0xNN  Beeper time(ms) [15:8]
- *   13 0xNN  Beeper time(ms) [7:0]
- *   14 0xNN  Silent time(ms) [15:8]
- *   15 0xNN  Silent time(ms) [7:0]
- *   16 0xFD  End byte
- */
-int8_t DABDUINO::playBEEP(uint32_t frequency) {
+int8_t DABDUINO::playBEEP(uint32_t frequency = 503, uint32_t beepTime = 500, uint32_t silentTime = 200) {
 
   byte dabData[DAB_MAX_DATA_LENGTH];
   uint32_t dabDataSize;
-  byte Byte0 = ((frequency >> 0) & 0xFF);
-  byte Byte1 = ((frequency >> 8) & 0xFF);
-  byte Byte2 = ((frequency >> 16) & 0xFF);
-  byte Byte3 = ((frequency >> 24) & 0xFF);
-  byte dabCommand[12] = { 0xFE, 0x01, 0x00, 0x00, 0x00, 0x05, 0x02, Byte3, Byte2, Byte1, Byte0, 0xFD };
-  // if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-  //   return 1;
-  // } else {
-  //   return 0;
-  // }
-  //for now just return 0
-  return 0;
+  byte freqByte0 = ((frequency >> 0) & 0xFF);
+  byte freqByte1 = ((frequency >> 8) & 0xFF);
+  byte freqByte2 = ((frequency >> 16) & 0xFF);
+  byte freqByte3 = ((frequency >> 24) & 0xFF);
+  byte btByte0 = ((beepTime >> 0) & 0xFF);
+  byte btByte1 = ((beepTime >> 8) & 0xFF);
+  byte btByte2 = ((beepTime >> 16) & 0xFF);
+  byte btByte3 = ((beepTime >> 24) & 0xFF);
+  byte stByte0 = ((silentTime >> 0) & 0xFF);
+  byte stByte1 = ((silentTime >> 8) & 0xFF);
+  byte stByte2 = ((silentTime >> 16) & 0xFF);
+  byte stByte3 = ((silentTime >> 24) & 0xFF);
+  byte dabCommand[16] = { 0xFE, 0x01, 0x00, 0x00, 0x00, 0x05, 0x03,
+    freqByte3, freqByte2, freqByte1, freqByte0, 
+    btByte3, btByte2, btByte1, btByte0,
+    stByte3, stByte2, stByte1, stByte0,
+    0xFD };
+  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 /*
@@ -991,15 +982,6 @@ int8_t DABDUINO::getServiceName(uint32_t programIndex, char text[]) {
   }
 }
 
-int8_t DABDUINO::getServiceShortName(uint32_t programIndex, char text[]) {
-  return  DABDUINO::getServiceName(programIndex, text);
-}
-/*
- * Get DAB program service long name
- */
-int8_t DABDUINO::getServiceLongName(uint32_t programIndex, char text[]) {
- return  DABDUINO::getServiceName(programIndex, text);
-}
 
 /*
  * Get DAB search index (number of programs found in search process)
@@ -1298,40 +1280,6 @@ int8_t DABDUINO::getFMstereoThdLevel(uint32_t *data) {
   }
 }
 
-/*
- * Todo
- * Get RDS raw data
- * return: 1=new RDS data, 2=no new RDS data, 3=no RDS data
- */
-int8_t DABDUINO::getRDSrawData(uint32_t *RDSblockA, uint32_t *RDSblockB, uint32_t *RDSblockC, uint32_t *RDSblockD, uint32_t *BlerA, uint32_t *BlerB, uint32_t *BlerC, uint32_t *BlerD) {
-
-/*   byte dabData[DAB_MAX_DATA_LENGTH];
-  uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x32, 0x00, 0x00, 0x00, 0xFD };
-  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-    if (dabDataSize > 1) {
-      *RDSblockA = (((long)dabData[0] << 8) + (long)dabData[1]);
-      *RDSblockB = (((long)dabData[2] << 8) + (long)dabData[3]);
-      *RDSblockC = (((long)dabData[4] << 8) + (long)dabData[5]);
-      *RDSblockD = (((long)dabData[6] << 8) + (long)dabData[7]);
-      *BlerA = (((long)dabData[8] << 8) + (long)dabData[9]);
-      *BlerB = (((long)dabData[10] << 8) + (long)dabData[11]);
-      *BlerC = (((long)dabData[12] << 8) + (long)dabData[13]);
-      *BlerD = (((long)dabData[14] << 8) + (long)dabData[15]);
-      return 1;
-    } else {
-      if (dabData[0] == 1) {
-        return 2;
-      } else {
-        return 3;
-      }
-    }
-    return 0;
-  } else {
-    return 0;
-  } */
-  return 0;
-}
 
 /*
  * Set FMseekTreshold
@@ -1410,27 +1358,6 @@ int8_t DABDUINO::getFMstereoTreshold(uint32_t *data) {
   }
 }
 
-/*
- * Todo
- * Get FM Exact station
- * data return: 0=current station is not exact frequency, 1=current station is exact frequency, 0xFE=no station information yet
- */
-int8_t DABDUINO::getFMexactStation(uint32_t *data) {
-/* 
-  byte dabData[DAB_MAX_DATA_LENGTH];
-  uint32_t dabDataSize;
-  byte dabCommand[7] = { 0xFE, 0x01, 0x39, 0x00, 0x00, 0x00, 0xFD };
-  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
-    if (dabDataSize) {
-      *data = (uint32_t)dabData[0];
-      return 1;
-    }
-    return 0;
-  } else {
-    return 0;
-  } */
-  return 0;
-}
 
 // *************************
 // ***** RTC ***************
@@ -1563,6 +1490,7 @@ int8_t DABDUINO::getRTCclockStatus(uint32_t *data) {
 
 // *************************
 // ***** NOTIFY ************
+// command type 0x07 NOTIFY
 // *************************
 
 /*
@@ -1596,9 +1524,61 @@ int8_t DABDUINO::eventNotificationDisable() {
 }
 
 
+// *************************
+// ***** GPIO **************
+// command type 0x08 GPIO
+// *************************
 
+/* 
+ * set GPIO pin function
+ * drivingStrength: 0: 2mA, 1: 4mA, 2: 6mA, 3: 8mA 
+ */
+int8_t DABDUINO::setGPIO(uint32_t gpioIndex, uint32_t gpioFunction, uint32_t drivingStrength = STRENGTH_2MA) {
+  byte dabData[DAB_MAX_DATA_LENGTH];
+  uint32_t dabDataSize;
+  byte dabCommand[10] = { 0xFE, 0x08, 0x00, 0x00, 0x00, 0x03, gpioIndex, gpioFunction, drivingStrength, 0xFD };
+  if (sendCommand(dabCommand, dabData, &dabDataSize)) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
 
+/*
+ * Set i2s mode
+ * true=on, false=off
+ * GPIO pins are hardcoded
+ * I2S_DATA_OUT pin 43
+ * I2S_LRCLK_OUT pin 55
+ * I2S_SSCLK_OUT pin 54
+ * I2S_BCLK_OUT pin 53
+ */
+int8_t DABDUINO::setI2sMode(boolean toggle = true) {
 
+  int32_t gpioFunction = MUTE;
+// set our I2S_DATA_OUT pin
+  if (toggle == true) {
+    gpioFunction = I2S_DATA_OUT;
+  }
+  setGPIO(0x2B, gpioFunction, STRENGTH_2MA); // 0x2B = GPIO 43
+// set our I2S_LRCLK_OUT pin
+  if (toggle == true) {
+    gpioFunction = I2S_LRCLK_OUT;
+  }
+  setGPIO(0x37, gpioFunction, STRENGTH_2MA); // 0x37 = GPIO 55
+// set our I2S_SSCLK_OUT pin
+  if (toggle == true) {
+    gpioFunction = I2S_SSCLK_OUT;
+  }
+  setGPIO(0x36, gpioFunction, STRENGTH_2MA); // 0x36 = GPIO 54
+// set our I2S_BCLK_OUT pin
+  if (toggle == true) {
+    gpioFunction = I2S_BCLK_OUT;
+  }
+  setGPIO(0x35, gpioFunction, STRENGTH_2MA); // 0x35 = GPIO 53
+
+  return 0;
+}
 
 
 
