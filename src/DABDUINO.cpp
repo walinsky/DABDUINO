@@ -35,7 +35,7 @@ enum {
   SPI_DO,
   SPI_CLK,
   SPI_CS,
-  SPI_DI
+  SPI_DI,
 }
 
 /* 
@@ -45,7 +45,7 @@ enum {
   STRENGTH_2MA,
   STRENGTH_4MA,
   STRENGTH_6MA,
-  STRENGTH_8MA
+  STRENGTH_8MA,
 }
 
 /*
@@ -421,7 +421,7 @@ int8_t DABDUINO::playBEEP(uint32_t frequency = 503, uint32_t beepTime = 500, uin
   byte stByte1 = ((silentTime >> 8) & 0xFF);
   byte stByte2 = ((silentTime >> 16) & 0xFF);
   byte stByte3 = ((silentTime >> 24) & 0xFF);
-  byte dabCommand[16] = { 0xFE, 0x01, 0x00, 0x00, 0x00, 0x05, 0x03,
+  byte dabCommand[20] = { 0xFE, 0x01, 0x00, 0x00, 0x00, 0x05, 0x03,
     freqByte3, freqByte2, freqByte1, freqByte0, 
     btByte3, btByte2, btByte1, btByte0,
     stByte3, stByte2, stByte1, stByte0,
